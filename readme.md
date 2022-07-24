@@ -7,7 +7,7 @@
 - 在代码仓库下载 `sqlite.zip` 文件
 
 ```bash
-# 下载代码, 并将下载的 sqlite.zip 解压到 src/db 文件夹
+# 下载代码, 并将下载的 sqlite.zip 解压到 src/public 文件夹
 git clone xxxxxx
 
 # 安装依赖

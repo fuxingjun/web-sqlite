@@ -1,0 +1,36 @@
+# http://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+# 多行时是否结尾添加逗号
+ij_javascript_enforce_trailing_comma = keep
+ij_typescript_enforce_trailing_comma = keep
+# import 时花括号内的空格
+ij_javascript_spaces_within_imports = true
+ij_typescript_spaces_within_imports = true
+# 对象，解构赋值时花括号内的空格
+ij_javascript_spaces_within_object_literal_braces = true
+ij_typescript_spaces_within_object_literal_braces = true
+# 使用双引号
+ij_javascript_use_double_quotes = true
+ij_typescript_use_double_quotes = true
+
+# 使用分号
+ij_javascript_use_semicolon_after_statement = true
+ij_typescript_use_semicolon_after_statement = true
+
+
+[*.md]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+[{*.htm,*.html,*.ng,*.sht,*.shtm,*.shtml,*.vue}]
+ij_html_attribute_wrap = off
+ij_html_space_inside_empty_tag = true
+ij_html_quote_style = double
