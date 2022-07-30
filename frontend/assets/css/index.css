@@ -82,10 +82,11 @@
   height: 0;
   flex-wrap: wrap;
   padding: 10px;
+  scrollbar-gutter: auto;
 }
 
 .charts-container .charts-wrapper .base-chart {
-  flex: 0 0 50%;
+  flex: 0 1 50%;
 }
 
 .log-container {

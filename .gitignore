@@ -22,5 +22,5 @@ pnpm-debug.log*
 *.sln
 *.sw?
 
-src/public/sqlite
+src/public
 logs

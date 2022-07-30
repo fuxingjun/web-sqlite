@@ -26,14 +26,14 @@ class BaseChart extends HTMLElement {
   }
 
   showLoading() {
-    let dom = this.$root.querySelector(".loading-mask")
+    let dom = this.$root.querySelector(".loading-mask");
     dom.classList.add("loading");
     dom.classList.remove("hidden");
     dom = null;
   }
 
   hideLoading() {
-    let dom = this.$root.querySelector(".loading-mask")
+    let dom = this.$root.querySelector(".loading-mask");
     dom.classList.remove("loading");
     dom.classList.add("hidden");
     dom = null;
@@ -109,7 +109,7 @@ class BaseChart extends HTMLElement {
         if (data.length === 0) {
           reject("data is null");
         } else {
-          resolve(BaseChart.mergeOption(data))
+          resolve(BaseChart.mergeOption(data));
         }
       }).catch(err => {
         reject(err);
@@ -126,15 +126,15 @@ class BaseChart extends HTMLElement {
   getOptionFromLocalDB(code) {
     return new Promise((resolve, reject) => {
       // 因为除了第一次加载大部分操作是同步的, 导致阻塞, 看不到 loading 效果, 加上 setTimeout 可以看到 loading 效果
-      // setTimeout(() => {
-      const url = `/sqlite/${globalModel === "2" ? "stock" : code}.sqlite`
-      useSQL(url).then(db => {
-        const result = listDailyFromLocalDB(db, code);
-        resolve(BaseChart.mergeOption(result));
-      }).catch(err => {
-        reject(err);
-      });
-      // }, 0);
+      setTimeout(() => {
+        const url = `/sqlite/${globalModel === "2" ? "stock" : code}.sqlite`;
+        useSQL(url).then(db => {
+          const result = listDailyFromLocalDB(db, code);
+          resolve(BaseChart.mergeOption(result));
+        }).catch(err => {
+          reject(err);
+        });
+      }, 0);
     });
   }
 
