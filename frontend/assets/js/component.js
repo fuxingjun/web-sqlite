@@ -125,11 +125,17 @@ class BaseChart extends HTMLElement {
    */
   getOptionFromLocalDB(code) {
     return new Promise((resolve, reject) => {
+      if (globalModel === "4") {
+        listDailyFromIndexedDB(code).then(result => {
+          resolve(BaseChart.mergeOption(result));
+        });
+        return;
+      }
       const url = `/sqlite/${globalModel === "2" ? "kLine" : code}.sqlite`;
       // 因为除了第一次加载大部分操作是同步的, 导致阻塞, 看不到 loading 效果, 加上 setTimeout 可以看到 loading 效果
       setTimeout(() => {
-        // listDailyFromLocalDB(url, code).then(result => {
-        listDailyFromLocalDBWorker(url, code).then(result => {
+        listDailyFromLocalDB(url, code).then(result => {
+          // listDailyFromLocalDBWorker(url, code).then(result => {
           if (result) {
             resolve(BaseChart.mergeOption(result));
           } else {

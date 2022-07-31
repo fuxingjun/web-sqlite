@@ -240,6 +240,46 @@ async function listDailyFromLocalDBWorker(url, code) {
 }
 
 /**
+ * 使用 IndexedDB 的 t_day 表
+ * @type {function(): *}
+ */
+const useKLineDB = (function () {
+  let dexieDB;
+  return function () {
+    if (!dexieDB) {
+      dexieDB = new Dexie('kLine')
+      // Declare tables, IDs and indexes
+      dexieDB.version(1).stores({
+        t_day: '++id, code, date'
+      });
+    }
+    return dexieDB;
+  }
+})();
+
+/**
+ *  从 IndexedDB 查询数据
+ * @param code
+ * @returns {Promise<null|*[]>}
+ */
+async function listDailyFromIndexedDB(code) {
+  const [err, data] = await captureError(async () => await useKLineDB().t_day.where({ code }).toArray());
+  if (err) {
+    console.log("listDailyFromIndexedDB.err", err);
+    return null;
+  }
+  console.log("listDailyFromIndexedDB", code, data.length);
+  if (!data[0]) return null;
+  const keyList = Object.keys(data[0]);
+  return calcMA(data.map(item => {
+    return keyList.reduce((total, current, index) => {
+      total[toHump(current)] = item[current];
+      return total;
+    }, {});
+  }));
+}
+
+/**
  * 下划线字符串转驼峰字符串
  * @param name
  * @returns {*}
