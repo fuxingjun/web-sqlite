@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="assets/css/index.css">
   <script src="assets/cdn/echarts.min.js"></script>
   <script src="assets/cdn/sql-wasm.min.js"></script>
+  <script src="assets/cdn/dexie.min.js"></script>
 </head>
 <body>
 <template id="chartTemplate">
@@ -117,11 +118,14 @@
           <label for="model-2">前端库</label>
           <input type="radio" id="model-3" name="model" value="3">
           <label for="model-3">前端分库</label>
+          <input type="radio" id="model-4" name="model" value="4">
+          <label for="model-3">IndexedDB</label>
         </div>
         <label>
-          <input type="text" class="code-input" value="000001,000002,000004,000005">
+          <input type="text" class="code-input" value="000003,000005,000007,000010">
         </label>
         <button class="button-refresh">查询</button>
+        <button class="button-insert-IndexedDB">写入IndexedDB</button>
         <a href="/stock/code/list" target="code-list">查看支持的code</a>
       </div>
       <div class="charts-wrapper flex custom-scrollbar">

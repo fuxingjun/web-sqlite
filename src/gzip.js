@@ -25,7 +25,7 @@ function gzipFile(source) {
  * 运行
  */
 function run() {
-  gzipFile("./public/sqlite/stock.sqlite");
+  gzipFile("./public/sqlite/kLine.sqlite");
 }
 
 run();

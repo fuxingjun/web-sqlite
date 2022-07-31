@@ -9,7 +9,7 @@ async function listStockDaily(code) {
   logger.info(`listStockDaily: ${code}`);
   const knexInstance = useSqlite();
   const [err, result] = await captureError(async () => {
-    return knexInstance.select("*").from("t_stock").where({
+    return knexInstance.select("*").from("t_day").where({
       code,
     });
   })
@@ -25,7 +25,13 @@ async function listStockCode() {
   logger.info(`listStockCode`);
   const knexInstance = useSqlite();
   const [err, result] = await captureError(async () => {
-    return knexInstance.select(["code", "name"]).from("t_stock").groupBy("code");
+    const data = await knexInstance.select(["code", "name"]).from("t_day").groupBy("code");
+    const codeList = data.map(item => item.code);
+    return {
+      // data,
+      // codeList,
+      codeStr: codeList.toString(),
+    }
   })
   // console.log(data);
   return err ? httpResult.error(err) : httpResult.success(result);

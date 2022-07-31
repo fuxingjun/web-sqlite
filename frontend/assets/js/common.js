@@ -1,8 +1,16 @@
+const useId = (function () {
+  let id = 0;
+  return function () {
+    return ++id;
+  }
+})();
+
 /**
  * get方法获取json数据
  * @param url
  * @returns {Promise<any>}
  */
+
 async function getJSON(url) {
   let response = await fetch(url);
   if (response.status >= 200 && response.status < 300) {
@@ -128,23 +136,107 @@ const useSQL = (function () {
 
 /**
  * 从前端数据库查询数据
- * @param db
+ * @param url
  * @param code
  * @returns {null|*}
  */
-function listDailyFromLocalDB(db, code) {
-  const result = db.exec(`SELECT *
-                          FROM t_stock
-                          WHERE code = $code`, { $code: code });
+async function listDailyFromLocalDB(url, code) {
+  const db = await useSQL(url);
+  const result = db.exec('SELECT * FROM t_day WHERE code = $code', { $code: code });
   // console.log("listDailyFromLocalDB", code, result);
   if (!result[0]) return null;
   const { columns, values } = result[0];
-  return values.map(valueList => {
+  return calcMA(values.map(valueList => {
     return valueList.reduce((total, current, index) => {
       total[toHump(columns[index])] = current;
       return total;
     }, {});
-  });
+  }));
+}
+
+/**
+ * 根据 url 获取sqlite文件buffer格式
+ * @type {function(*): Promise<ArrayBuffer>}
+ */
+const useBuffer = (function () {
+  let bufferMap = new Map();
+  return async function (url) {
+    let bufferPromise;
+    if (!bufferMap.has(url)) {
+      bufferPromise = fetch(url).then(res => res.arrayBuffer());
+      bufferMap.set(url, bufferPromise);
+    } else {
+      bufferPromise = bufferMap.get(url);
+    }
+    return await bufferPromise;
+  }
+})();
+
+const useWorker = (function () {
+    let dbOpened = false;
+    return function (url, sql, params) {
+      const worker = new Worker(`${location.origin}/assets/cdn/worker.sql-wasm.js`);
+      const id1 = useId();
+      const id2 = useId();
+      return new Promise(async (resolve, reject) => {
+        const openStartTime = performance.now();
+        worker.onmessage = () => {
+          dbOpened = true;
+          console.log(`打开数据库耗时: ${performance.now() - openStartTime}`);
+          const startTime = performance.now();
+          worker.onmessage = event => {
+            console.log(`执行sql耗时: ${performance.now() - startTime}`);
+            // console.log(event.data); // The result of the query
+            resolve(event.data);
+          };
+          worker.postMessage({
+            id: id2,
+            action: "exec",
+            sql,
+            params,
+          });
+        };
+
+        worker.onerror = e => {
+          console.log("Worker error: ", e);
+          reject(e)
+        }
+        // let buffer = undefined;
+        // if (!dbOpened) {
+        //   buffer = await useBuffer(url)
+        // }
+        worker.postMessage({
+          id: id1,
+          action: "open",
+          buffer: await useBuffer(url), /*Optional. An ArrayBuffer representing an SQLite Database file*/
+        });
+      })
+    }
+  }
+)();
+
+/**
+ * 从前端数据库使用Worker查询数据
+ * @param url
+ * @param code
+ * @returns {null|*}
+ */
+async function listDailyFromLocalDBWorker(url, code) {
+  const [err, data] = await captureError(useWorker, url, 'SELECT *  FROM t_day  WHERE code = $code', { $code: code });
+  if (err) {
+    console.log("listDailyFromLocalDBWorker.err", err);
+    return null;
+  }
+  console.log("listDailyFromLocalDBWorker", code, data);
+  const { results } = data;
+  if (!results[0]) return null;
+  const { columns, values } = results[0];
+  return calcMA(values.map(valueList => {
+    return valueList.reduce((total, current, index) => {
+      total[toHump(columns[index])] = current;
+      return total;
+    }, {});
+  }));
 }
 
 /**
@@ -168,4 +260,19 @@ function convertToCamel(row) {
     total[toHump(current)] = row[current];
     return total;
   }, {})
+}
+
+/**
+ * try catch辅助函数
+ * @param {*} asyncFunc
+ * @param  {...any} args
+ * @returns
+ */
+async function captureError(asyncFunc, ...args) {
+  try {
+    let res = await asyncFunc.apply(null, args);
+    return [null, res];
+  } catch (error) {
+    return [error, null];
+  }
 }

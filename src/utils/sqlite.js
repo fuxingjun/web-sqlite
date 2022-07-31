@@ -31,7 +31,7 @@ const useSqlite = (function () {
       knexInstance = knex({
         client: 'better-sqlite3', // or 'sqlite3'
         connection: {
-          filename: path.resolve(__dirname, `../public/sqlite/stock.sqlite`),
+          filename: path.resolve(__dirname, `../public/sqlite/kLine.sqlite`),
         },
         // sqlite does not support inserting default values. Set the `useNullAsDefault` flag to hide this warning.
         useNullAsDefault: true,
