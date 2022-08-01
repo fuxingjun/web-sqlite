@@ -71,7 +71,7 @@ async function listDailyFromSQLite() {
   const { columns, values } = result[0];
   const data = values.map(valueList => {
     return valueList.reduce((total, current, index) => {
-      total[toHump(columns[index])] = current;
+      total[columns[index]] = current;
       return total;
     }, {});
   });
@@ -114,16 +114,45 @@ document.querySelector(".button-insert-WebSQL").addEventListener("click", insert
  */
 async function insertToWebSQLLimit() {
   listDailyFromSQLite().then(data => {
+    // 避免触发 `could not prepare statement (1 too many SQL variables)` 错误
+    data = data.slice(0, 2000);
     const len = data.length;
     // console.log("listDailyFromLocalDBLimit", id, data);
     const startTime = performance.now();
+    useWebSQL().then(db => {
+      console.log("useWebSQL", db)
+      const columns = Object.keys(data[0]).filter(key => key !== "id");
+      db.transaction(function (tx) {
+        const { sql, params } = useInsertSql(`t_day`, data, columns)
+        console.log("useInsertSql", sql)
+        tx.executeSql(
+          sql,
+          params,
+          function (tx, result) {
+            console.log(`插入${len}条数据耗时: ${performance.now() - startTime}`);
+          },
+          function (tx, error) {
+            console.error(error);
+            console.error(`插入${len}条数据错误, 耗时: ${performance.now() - startTime}`);
+          }
+        );
+      });
+    });
   })
 }
 
+/**
+ * 获取数据库，如果数据库不存在则创建并建表
+ * @type {function(): Database}
+ */
 const useWebSQL = (function () {
   let db;
   return function () {
-    if (!db) {
+    return new Promise((resolve, reject) => {
+      if (db) {
+        resolve(db);
+        return;
+      }
       db = openDatabase('kLine', '1.0', 'kLine', 2 * 1024 * 1024);
       db.transaction(function (tx) {
         tx.executeSql(
@@ -154,19 +183,45 @@ const useWebSQL = (function () {
               [],
               function (result) {
                 console.log("创建索引成功", result);
+                resolve(db);
               },
               function (err) {
                 console.error("创建索引失败", err);
+                reject(err);
               }
             );
           },
           function (err) {
             console.error("创建表失败", err);
+            reject(err);
           }
         );
       });
-    }
-    return db;
+    })
   }
 })();
 
+/**
+ * 拼接插入SQL
+ * @param tableName
+ * @param data
+ * @param columns
+ * @returns {{params: *[], sql: string}}
+ */
+function useInsertSql(tableName, data, columns) {
+  if (!columns) {
+    columns = Object.keys(data[0]);
+  }
+  let insertSql = `INSERT INTO ${tableName} (${columns.join(",")})
+                   VALUES `;
+  const params = [];
+  data.forEach(item => {
+    insertSql += `(${columns.map(() => "?").join(",")}),\n`
+    columns.forEach(key => {
+      params.push(item[key]);
+    });
+  })
+  insertSql = insertSql.slice(0, -2);
+  insertSql += ";"
+  return { sql: insertSql, params };
+}

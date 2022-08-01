@@ -10,7 +10,6 @@ const useId = (function () {
  * @param url
  * @returns {Promise<any>}
  */
-
 async function getJSON(url) {
   let response = await fetch(url);
   if (response.status >= 200 && response.status < 300) {
