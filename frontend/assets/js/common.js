@@ -271,11 +271,131 @@ async function listDailyFromIndexedDB(code) {
   if (!data[0]) return null;
   const keyList = Object.keys(data[0]);
   return calcMA(data.map(item => {
-    return keyList.reduce((total, current, index) => {
+    return keyList.reduce((total, current) => {
       total[toHump(current)] = item[current];
       return total;
     }, {});
   }));
+}
+
+/**
+ * 从WebSQL查询数据
+ * @param code
+ * @returns {Promise<void>}
+ */
+function listDailyFromWebSQL(code) {
+  return new Promise((resolve, reject) => {
+    useWebSQL().then(db => {
+      // console.log("useWebSQL", db)
+      db.transaction(function (tx) {
+        const sql = 'SELECT * FROM t_day WHERE code = ?';
+        tx.executeSql(
+          sql,
+          [code],
+          function (tx, result) {
+            const data = Object.values(result.rows);
+            if (!data[0]) return null;
+            const keyList = Object.keys(data[0]);
+            resolve(calcMA(data.map(item => {
+              return keyList.reduce((total, current) => {
+                total[toHump(current)] = item[current];
+                return total;
+              }, {});
+            })));
+          },
+          function (tx, error) {
+            reject(error);
+            console.error(`查询数据错误`, error);
+          }
+        );
+      });
+    });
+  })
+}
+
+/**
+ * 获取数据库，如果数据库不存在则创建并建表
+ * @type {function(): Database}
+ */
+const useWebSQL = (function () {
+  let db;
+  return function () {
+    return new Promise((resolve, reject) => {
+      if (!db) {
+        db = openDatabase('kLine', '1.0', 'kLine', 2 * 1024 * 1024);
+        db.transaction(function (tx) {
+          tx.executeSql(
+            `CREATE TABLE IF NOT EXISTS t_day
+             (
+               id             INTEGER PRIMARY KEY AUTOINCREMENT,
+               code           CHAR(50),
+               name           CHAR(50),
+               date           CHAR(50),
+               open_price     FLOAT COMMENT '开盘价',
+               close_price    FLOAT COMMENT '收盘价',
+               high_price     FLOAT COMMENT '最高价',
+               low_price      FLOAT COMMENT '最低价',
+               trading_volume FLOAT COMMENT '成交量/手',
+               trading_amount FLOAT COMMENT '成交额/元',
+               amplitude      FLOAT COMMENT '振幅/%',
+               change_ratio   FLOAT COMMENT '涨跌幅/%',
+               change_amount  FLOAT COMMENT '涨跌额/元',
+               turnover_ratio FLOAT COMMENT '换手率/%',
+               created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+               updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+             );`,
+            [],
+            function (result) {
+              console.log("创建表成功", result);
+              result.executeSql(
+                `CREATE INDEX IF NOT EXISTS idx_code_date ON t_day (code, date);`,
+                [],
+                function (result) {
+                  console.log("创建索引成功", result);
+                  resolve(db);
+                },
+                function (err) {
+                  console.error("创建索引失败", err);
+                  reject(err);
+                }
+              );
+            },
+            function (err) {
+              console.error("创建表失败", err);
+              reject(err);
+            }
+          );
+        });
+      } else {
+        resolve(db);
+      }
+    })
+  }
+})();
+
+/**
+ * 拼接插入SQL
+ * @param tableName
+ * @param data
+ * @param columns
+ * @returns {{params: *[], sql: string}}
+ */
+function useInsertSql(tableName, data, columns) {
+  if (!columns) {
+    columns = Object.keys(data[0]);
+  }
+  // language=SQL format=false
+  let insertSql = `INSERT INTO ${tableName} (${columns.join(",")}) VALUES `;
+  const params = [];
+  data.forEach(item => {
+    insertSql += `(${columns.map(() => "?").join(",")}),\n`
+    columns.forEach(key => {
+      params.push(item[key]);
+    });
+  })
+  insertSql = insertSql.slice(0, -2);
+  insertSql += ";"
+  return { sql: insertSql, params };
 }
 
 /**

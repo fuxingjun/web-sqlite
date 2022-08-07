@@ -126,10 +126,13 @@ class BaseChart extends HTMLElement {
   getOptionFromLocalDB(code) {
     return new Promise((resolve, reject) => {
       if (globalModel === "4") {
-        listDailyFromIndexedDB(code).then(result => {
+        return listDailyFromIndexedDB(code).then(result => {
           resolve(BaseChart.mergeOption(result));
         });
-        return;
+      } else if (globalModel === "5") {
+        return listDailyFromWebSQL(code).then(result => {
+          resolve(BaseChart.mergeOption(result));
+        });
       }
       const url = `/sqlite/${globalModel === "2" ? "kLine" : code}.sqlite`;
       // 因为除了第一次加载大部分操作是同步的, 导致阻塞, 看不到 loading 效果, 加上 setTimeout 可以看到 loading 效果
