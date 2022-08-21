@@ -128,10 +128,14 @@ class BaseChart extends HTMLElement {
       if (globalModel === "4") {
         return listDailyFromIndexedDB(code).then(result => {
           resolve(BaseChart.mergeOption(result));
+        }).catch(err => {
+          reject(err);
         });
       } else if (globalModel === "5") {
         return listDailyFromWebSQL(code).then(result => {
           resolve(BaseChart.mergeOption(result));
+        }).catch(err => {
+          reject(err);
         });
       }
       const url = `/sqlite/${globalModel === "2" ? "kLine" : code}.sqlite`;

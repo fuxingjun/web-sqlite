@@ -120,11 +120,28 @@ const useSQL = (function () {
       if (sqliteMap.has(url)) {
         dataPromise = sqliteMap.get(url);
       } else {
-        dataPromise = fetch(url).then(res => res.arrayBuffer());
+        let startTime = performance.now();
+        dataPromise = localforage.getItem(`sqliteUint8.${url}`).then(res => {
+          if (res) {
+            pageLogger(`localforage 读取耗时 ${(performance.now() - startTime).toFixed(2)}ms`);
+            return res;
+          }
+          return fetch(url).then(async res => {
+            startTime = performance.now();
+            const buf = await res.arrayBuffer();
+            pageLogger(`转换 buffer 耗时: ${(performance.now() - startTime).toFixed(2)}ms`);
+            const uint8 = new Uint8Array(buf)
+            startTime = performance.now();
+            localforage.setItem(`sqliteUint8.${url}`, uint8, function () {
+              pageLogger(`${url} localforage 存储耗时 ${(performance.now() - startTime).toFixed(2)}ms`);
+            });
+            return uint8
+          });
+        })
         sqliteMap.set(url, dataPromise);
       }
-      const [SQL, buf] = await Promise.all([sqlPromise, dataPromise])
-      db = new SQL.Database(new Uint8Array(buf));
+      const [SQL, uint8] = await Promise.all([sqlPromise, dataPromise]);
+      db = new SQL.Database(uint8);
       dbMap.set(url, db);
     } else {
       db = dbMap.get(url);
@@ -143,7 +160,7 @@ async function listDailyFromLocalDB(url, code) {
   const db = await useSQL(url);
   const result = db.exec('SELECT * FROM t_day WHERE code = $code', { $code: code });
   // console.log("listDailyFromLocalDB", code, result);
-  if (!result[0]) return null;
+  if (!result || !result[0]) return null;
   const { columns, values } = result[0];
   return calcMA(values.map(valueList => {
     return valueList.reduce((total, current, index) => {
@@ -179,14 +196,18 @@ const useWorker = (function () {
       const id2 = useId();
       return new Promise(async (resolve, reject) => {
         const openStartTime = performance.now();
-        worker.onmessage = () => {
+        worker.onmessage = (event) => {
+          if (event.data.id !== id1) return;
           dbOpened = true;
-          console.log(`打开数据库耗时: ${performance.now() - openStartTime}`);
+          pageLogger(`打开数据库耗时: ${(performance.now() - openStartTime).toFixed(2)}`);
           const startTime = performance.now();
           worker.onmessage = event => {
-            console.log(`执行sql耗时: ${performance.now() - startTime}`);
-            // console.log(event.data); // The result of the query
-            resolve(event.data);
+            pageLogger(`执行sql耗时: ${(performance.now() - startTime).toFixed(2)}`);
+            console.log("The result of the query", event); // The result of the query
+            const { id } = event.data;
+            if (id === id2) {
+              resolve(event.data);
+            }
           };
           worker.postMessage({
             id: id2,
@@ -228,7 +249,7 @@ async function listDailyFromLocalDBWorker(url, code) {
   }
   console.log("listDailyFromLocalDBWorker", code, data);
   const { results } = data;
-  if (!results[0]) return null;
+  if (!results || !results[0]) return [];
   const { columns, values } = results[0];
   return calcMA(values.map(valueList => {
     return valueList.reduce((total, current, index) => {
@@ -294,7 +315,10 @@ function listDailyFromWebSQL(code) {
           [code],
           function (tx, result) {
             const data = Object.values(result.rows);
-            if (!data[0]) return null;
+            if (!data[0]) {
+              resolve(null);
+              return;
+            }
             const keyList = Object.keys(data[0]);
             resolve(calcMA(data.map(item => {
               return keyList.reduce((total, current) => {
